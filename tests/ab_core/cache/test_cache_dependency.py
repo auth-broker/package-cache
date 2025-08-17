@@ -4,8 +4,8 @@ from unittest.mock import patch
 
 from pydantic import BaseModel
 
-from obo_core.cache.caches import Cache, InMemoryCache
-from obo_core.dependency import Depends, inject
+from ab_core.cache.caches import Cache, InMemoryCache
+from ab_core.dependency import Depends, inject
 
 
 def test_cache_dependency():

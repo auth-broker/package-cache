@@ -4,7 +4,7 @@ from typing import (
     Annotated,
 )
 
-from obo_core.dependency import Depends, inject, sentinel
+from ab_core.dependency import Depends, inject, sentinel
 
 from .caches import Cache
 

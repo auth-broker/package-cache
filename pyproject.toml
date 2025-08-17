@@ -6,7 +6,7 @@ requires = ["hatchling"]
 dev = [
   "debugpy>=1.8.14,<2",
   "isort>=6.0.1,<7",
-  "obo-test-fixtures",
+  "ab-test-fixtures",
   "pre-commit>=4.2.0,<5",
   "pytest-asyncio>=1.0.0,<2",
   "pytest-cov>=6.2.1,<7",
@@ -19,7 +19,7 @@ dev = [
 authors = [{email = "53892067+mattcoulter7@users.noreply.github.com", name = "Matthew Coulter"}]
 dependencies = [
   "diskcache>=5.6.3,<6",
-  "obo-dependency",
+  "ab-dependency",
   "orjson>=3.11.2,<4",
   "pydantic>=2.11.7,<3",
   "slugify>=0.0.1,<0.0.2",
@@ -27,7 +27,7 @@ dependencies = [
   "uuid7>=0.1.0,<0.2"
 ]
 description = ""
-name = "obo-cache"
+name = "ab-cache"
 readme = "README.md"
 requires-python = ">=3.12, <4"
 version = "0.1.0"
@@ -38,13 +38,13 @@ redis-async = ["redis>=6.4.0,<7"]
 redis-sync = ["redis>=6.4.0,<7"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/obo_core"]
+include = ["src/ab_core"]
 
 [tool.hatch.build.targets.wheel]
-include = ["src/obo_core"]
+include = ["src/ab_core"]
 
 [tool.hatch.build.targets.wheel.sources]
-"src/obo_core" = "obo_core"
+"src/ab_core" = "ab_core"
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "session"
@@ -76,9 +76,3 @@ select = [
   "UP", # pyupgrade
   "W" # pycodestyle warnings
 ]
-
-[tool.uv]
-
-[tool.uv.sources]
-obo-dependency = {editable = true, path = "../obo-dependency"}
-obo-test-fixtures = {editable = true, path = "../../obo_test/obo-test-fixtures"}

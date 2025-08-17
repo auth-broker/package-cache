@@ -3,7 +3,7 @@ import time
 
 import pytest
 
-from obo_core.cache.caches import Cache  # keep your existing fixture type
+from ab_core.cache.caches import Cache  # keep your existing fixture type
 
 
 def test_cache_sync(tmp_cache_sync: Cache):

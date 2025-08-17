@@ -1,7 +1,7 @@
 import pytest
 
-from obo_core.cache.caches import Cache
-from obo_core.cache.session_context import cache_session_async_cm, cache_session_sync_cm
+from ab_core.cache.caches import Cache
+from ab_core.cache.session_context import cache_session_async_cm, cache_session_sync_cm
 
 
 def test_cache_session_sync_persists(tmp_cache_sync: Cache):

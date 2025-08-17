@@ -5,8 +5,8 @@ from typing import AsyncIterator, Iterator, Literal, Optional, override
 
 from pydantic import ConfigDict, Field
 
-from obo_core.cache.codec import DecodedT, EncodedT, safe_decode, safe_encode
-from obo_core.cache.exceptions import GenericCacheReadError, GenericCacheWriteError
+from ab_core.cache.codec import DecodedT, EncodedT, safe_decode, safe_encode
+from ab_core.cache.exceptions import GenericCacheReadError, GenericCacheWriteError
 
 from ..schema.cache_type import CacheType
 from .base import CacheAsyncSession, CacheBase, CacheSession

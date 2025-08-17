@@ -11,7 +11,7 @@ from typing import (
 
 from pydantic import BaseModel, Field
 
-from obo_core.cache.namespace import CacheNamespace
+from ab_core.cache.namespace import CacheNamespace
 
 
 class CacheSession(BaseModel, ABC):

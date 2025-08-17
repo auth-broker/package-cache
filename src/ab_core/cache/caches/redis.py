@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, Any, AsyncIterator, Iterator, Literal, Optiona
 
 from pydantic import ConfigDict, Field, model_validator
 
-from obo_core.cache.codec import DecodedT, safe_decode, safe_encode
-from obo_core.cache.exceptions import (
+from ab_core.cache.codec import DecodedT, safe_decode, safe_encode
+from ab_core.cache.exceptions import (
     GenericCacheReadError,
     GenericCacheWriteError,
 )
@@ -304,9 +304,9 @@ class RedisCache(CacheBase[RedisCacheSession, RedisCacheAsyncSession]):
             raise ImportError(
                 "Redis client not installed. "
                 "Install extras depending on your usage:\n"
-                '  - Sync only:  pip install "obo-cache[redis-sync]"\n'
-                '  - Async only: pip install "obo-cache[redis-async]"\n'
-                '  - Both:       pip install "obo-cache[redis-sync,redis-async]"'
+                '  - Sync only:  pip install "ab-cache[redis-sync]"\n'
+                '  - Async only: pip install "ab-cache[redis-async]"\n'
+                '  - Both:       pip install "ab-cache[redis-sync,redis-async]"'
             )
         return self
 
