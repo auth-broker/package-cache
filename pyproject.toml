@@ -32,6 +32,10 @@ readme = "README.md"
 requires-python = ">=3.12, <4"
 version = "0.1.0"
 
+[tool.uv.sources]
+ab-dependency = { git = "https://github.com/auth-broker/package-dependency", rev = "0.1.0" }
+ab-test-fixtures  = { git = "https://@github.com/auth-broker/package-test-fixtures", rev = "0.1.0" }
+
 [project.optional-dependencies]
 all = ["redis>=6.4.0,<7"]
 redis-async = ["redis>=6.4.0,<7"]
