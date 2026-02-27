@@ -3,7 +3,7 @@ import time
 from contextlib import asynccontextmanager, contextmanager
 from typing import AsyncIterator, Iterator, Literal, Optional, override
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, PrivateAttr
 
 from ab_core.cache.codec import DecodedT, EncodedT, safe_decode, safe_encode
 from ab_core.cache.exceptions import GenericCacheReadError, GenericCacheWriteError
@@ -23,9 +23,23 @@ class InMemoryCacheSession(CacheSession):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    # These are injected references; do NOT default_factory them here.
-    store: dict[str, EncodedT]
-    expiry: dict[str, Optional[float]]
+    _store: dict[str, EncodedT] = PrivateAttr()
+    _expiry: dict[str, Optional[float]] = PrivateAttr()
+
+    def __init__(self, **data):
+        store = data.pop("store")
+        expiry = data.pop("expiry")
+        super().__init__(**data)
+        self._store = store
+        self._expiry = expiry
+
+    @property
+    def store(self) -> dict[str, EncodedT]:
+        return self._store
+
+    @property
+    def expiry(self) -> dict[str, Optional[float]]:
+        return self._expiry
 
     def _cleanup_key(self, k: str) -> None:
         exp = self.expiry.get(k)
@@ -190,8 +204,24 @@ class InMemoryCacheAsyncSession(CacheAsyncSession):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    store: dict[str, EncodedT]
-    expiry: dict[str, Optional[float]]
+    _store: dict[str, EncodedT] = PrivateAttr()
+    _expiry: dict[str, Optional[float]] = PrivateAttr()
+
+    def __init__(self, **data):
+        store = data.pop("store")
+        expiry = data.pop("expiry")
+        super().__init__(**data)
+        self._store = store
+        self._expiry = expiry
+
+    @property
+    def store(self) -> dict[str, EncodedT]:
+        return self._store
+
+    @property
+    def expiry(self) -> dict[str, Optional[float]]:
+        return self._expiry
+
 
     def _cleanup_key(self, k: str) -> None:
         exp = self.expiry.get(k)
@@ -342,15 +372,20 @@ class InMemoryCacheAsyncSession(CacheAsyncSession):
         # Nothing to release for in-memory; keep API parity
         return None
 
-
 class InMemoryCache(CacheBase[InMemoryCacheSession, InMemoryCacheAsyncSession]):
     type: Literal[CacheType.INMEMORY] = CacheType.INMEMORY
-
-    # The shared, app-lifetime backing store lives HERE.
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    store: dict[str, EncodedT] = Field(default_factory=dict)
-    expiry: dict[str, Optional[float]] = Field(default_factory=dict)
+    _store: dict[str, EncodedT] = PrivateAttr(default_factory=dict)
+    _expiry: dict[str, Optional[float]] = PrivateAttr(default_factory=dict)
+
+    @property
+    def store(self) -> dict[str, EncodedT]:
+        return self._store
+
+    @property
+    def expiry(self) -> dict[str, Optional[float]]:
+        return self._expiry
 
     @override
     @contextmanager
