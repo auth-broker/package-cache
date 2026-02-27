@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 @inject
 @contextmanager
 def cache_session_sync_cm(
-    cache: Annotated[Cache, Depends(Cache)] = sentinel(),
+    cache: Annotated[Cache, Depends(Cache, persist=True)] = sentinel(),
 ):
     with cache.sync_session() as sync_session:
         try:
@@ -36,7 +36,7 @@ def cache_session_sync_cm(
 @inject
 @asynccontextmanager
 async def cache_session_async_cm(
-    cache: Annotated[Cache, Depends(Cache)] = sentinel(),
+    cache: Annotated[Cache, Depends(Cache, persist=True)] = sentinel(),
 ):
     async with cache.async_session() as async_session:
         try:
@@ -61,7 +61,7 @@ async def cache_session_async_cm(
 
 @inject
 def cache_session_sync(
-    cache: Annotated[Cache, Depends(Cache)] = sentinel(),
+    cache: Annotated[Cache, Depends(Cache, persist=True)] = sentinel(),
 ):
     with cache_session_sync_cm(cache) as sync_session:
         yield sync_session
@@ -69,7 +69,7 @@ def cache_session_sync(
 
 @inject
 async def cache_session_async(
-    cache: Annotated[Cache, Depends(Cache)] = sentinel(),
+    cache: Annotated[Cache, Depends(Cache, persist=True)] = sentinel(),
 ):
     async with cache_session_async_cm(cache) as async_session:
         yield async_session
