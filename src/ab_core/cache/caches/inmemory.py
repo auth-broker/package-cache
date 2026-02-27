@@ -16,15 +16,16 @@ class InMemoryCacheSession(CacheSession):
     """
     Synchronous in-memory session.
 
-    - Keys are namespaced strings (via CacheNamespace).
-    - Values are stored as EncodedT (bytes-like).
-    - Expiration tracked as epoch seconds in `expiry` (None means no expiration).
+    IMPORTANT:
+    - store/expiry are REFERENCES to the owning InMemoryCache's dicts.
+      The session should not own lifecycle of the underlying data.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    store: dict[str, EncodedT] = Field(default_factory=dict)
-    expiry: dict[str, Optional[float]] = Field(default_factory=dict)
+    # These are injected references; do NOT default_factory them here.
+    store: dict[str, EncodedT]
+    expiry: dict[str, Optional[float]]
 
     def _cleanup_key(self, k: str) -> None:
         exp = self.expiry.get(k)
@@ -175,7 +176,7 @@ class InMemoryCacheSession(CacheSession):
 
     @override
     def close(self) -> None:
-        # Nothing to release for in-memory; keep API parity
+        # Nothing to release; the underlying store belongs to InMemoryCache
         return None
 
 
@@ -183,13 +184,14 @@ class InMemoryCacheAsyncSession(CacheAsyncSession):
     """
     Asynchronous in-memory session.
 
-    Independent store/expiry per session instance (matches the sync behaviour).
+    IMPORTANT:
+    - store/expiry are REFERENCES to the owning InMemoryCache's dicts.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    store: dict[str, EncodedT] = Field(default_factory=dict)
-    expiry: dict[str, Optional[float]] = Field(default_factory=dict)
+    store: dict[str, EncodedT]
+    expiry: dict[str, Optional[float]]
 
     def _cleanup_key(self, k: str) -> None:
         exp = self.expiry.get(k)
@@ -344,6 +346,12 @@ class InMemoryCacheAsyncSession(CacheAsyncSession):
 class InMemoryCache(CacheBase[InMemoryCacheSession, InMemoryCacheAsyncSession]):
     type: Literal[CacheType.INMEMORY] = CacheType.INMEMORY
 
+    # The shared, app-lifetime backing store lives HERE.
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    store: dict[str, EncodedT] = Field(default_factory=dict)
+    expiry: dict[str, Optional[float]] = Field(default_factory=dict)
+
     @override
     @contextmanager
     def sync_session(
@@ -353,9 +361,14 @@ class InMemoryCache(CacheBase[InMemoryCacheSession, InMemoryCacheAsyncSession]):
     ) -> Iterator[InMemoryCacheSession]:
         if current_session:
             yield current_session
-        else:
-            with InMemoryCacheSession(namespace=self.namespace) as session:
-                yield session
+            return
+
+        with InMemoryCacheSession(
+            namespace=self.namespace,
+            store=self.store,
+            expiry=self.expiry,
+        ) as session:
+            yield session
 
     @override
     @asynccontextmanager
@@ -366,6 +379,11 @@ class InMemoryCache(CacheBase[InMemoryCacheSession, InMemoryCacheAsyncSession]):
     ) -> AsyncIterator[InMemoryCacheAsyncSession]:
         if current_session:
             yield current_session
-        else:
-            async with InMemoryCacheAsyncSession(namespace=self.namespace) as session:
-                yield session
+            return
+
+        async with InMemoryCacheAsyncSession(
+            namespace=self.namespace,
+            store=self.store,
+            expiry=self.expiry,
+        ) as session:
+            yield session
