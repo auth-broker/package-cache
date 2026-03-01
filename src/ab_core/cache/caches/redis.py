@@ -309,7 +309,7 @@ class RedisCacheAsyncSession(CacheAsyncSession):
 class RedisCache(CacheBase[RedisCacheSession, RedisCacheAsyncSession]):
     type: Literal[CacheType.REDIS] = CacheType.REDIS
 
-    redis_url: str
+    url: str
     username: str | None = None
     password: str | None = None
     cluster: bool = Field(False, description="Use Redis Cluster")
@@ -340,12 +340,12 @@ class RedisCache(CacheBase[RedisCacheSession, RedisCacheAsyncSession]):
         """Synchronous client (standalone or cluster)."""
         if self.cluster:
             return SyncRedisClusterClient.from_url(
-                self.redis_url,
+                self.url,
                 username=self.username,
                 password=self.password,
             )
         return SyncRedisClient.from_url(
-            self.redis_url,
+            self.url,
             username=self.username,
             password=self.password,
         )
@@ -354,12 +354,12 @@ class RedisCache(CacheBase[RedisCacheSession, RedisCacheAsyncSession]):
         """Async client (standalone or cluster)."""
         if self.cluster:
             return AsyncRedisClusterClient.from_url(
-                self.redis_url,
+                self.url,
                 username=self.username,
                 password=self.password,
             )
         return AsyncRedisClient.from_url(
-            self.redis_url,
+            self.url,
             username=self.username,
             password=self.password,
         )
