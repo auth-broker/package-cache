@@ -1,5 +1,6 @@
+from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager, contextmanager
-from typing import AsyncIterator, Iterator, Literal, Optional, override
+from typing import Literal, override
 
 from ..schema.cache_type import CacheType
 from .base import CacheAsyncSession, CacheBase, CacheSession
@@ -13,11 +14,11 @@ class TemplateCacheSession(CacheSession):
         raise NotImplementedError("TemplateSessionSync.get is not implemented")
 
     @override
-    def set(self, key: str, value, expiry: Optional[int] = None) -> bool:
+    def set(self, key: str, value, expiry: int | None = None) -> bool:
         raise NotImplementedError("TemplateSessionSync.set is not implemented")
 
     @override
-    def set_if_not_exists(self, key: str, value, expiry: Optional[int] = None) -> bool:
+    def set_if_not_exists(self, key: str, value, expiry: int | None = None) -> bool:
         raise NotImplementedError("TemplateSessionSync.set_if_not_exists is not implemented")
 
     @override
@@ -30,8 +31,8 @@ class TemplateCacheSession(CacheSession):
         key: str,
         *,
         increment_by: int = 1,
-        initial_value: Optional[int] = None,
-        expiry: Optional[int] = None,
+        initial_value: int | None = None,
+        expiry: int | None = None,
     ) -> int:
         raise NotImplementedError("TemplateSessionSync.increment is not implemented")
 
@@ -64,11 +65,11 @@ class TemplateCacheAsyncSession(CacheAsyncSession):
         raise NotImplementedError("TemplateSessionAsync.get is not implemented")
 
     @override
-    async def set(self, key: str, value, expiry: Optional[int] = None) -> bool:
+    async def set(self, key: str, value, expiry: int | None = None) -> bool:
         raise NotImplementedError("TemplateSessionAsync.set is not implemented")
 
     @override
-    async def set_if_not_exists(self, key: str, value, expiry: Optional[int] = None) -> bool:
+    async def set_if_not_exists(self, key: str, value, expiry: int | None = None) -> bool:
         raise NotImplementedError("TemplateSessionAsync.set_if_not_exists is not implemented")
 
     @override
@@ -81,8 +82,8 @@ class TemplateCacheAsyncSession(CacheAsyncSession):
         key: str,
         *,
         increment_by: int = 1,
-        initial_value: Optional[int] = None,
-        expiry: Optional[int] = None,
+        initial_value: int | None = None,
+        expiry: int | None = None,
     ) -> int:
         raise NotImplementedError("TemplateSessionAsync.increment is not implemented")
 
@@ -117,7 +118,7 @@ class TemplateCache(CacheBase[TemplateCacheSession, TemplateCacheAsyncSession]):
     def sync_session(
         self,
         *,
-        current_session: Optional[TemplateCacheSession] = None,
+        current_session: TemplateCacheSession | None = None,
     ) -> Iterator[TemplateCacheSession]:
         if current_session:
             yield current_session
@@ -132,7 +133,7 @@ class TemplateCache(CacheBase[TemplateCacheSession, TemplateCacheAsyncSession]):
     async def async_session(
         self,
         *,
-        current_session: Optional[TemplateCacheAsyncSession] = None,
+        current_session: TemplateCacheAsyncSession | None = None,
     ) -> AsyncIterator[TemplateCacheAsyncSession]:
         if current_session:
             yield current_session

@@ -18,7 +18,6 @@ dev = [
 [project]
 authors = [{email = "53892067+mattcoulter7@users.noreply.github.com", name = "Matthew Coulter"}]
 dependencies = [
-  "diskcache>=5.6.3,<6",
   "ab-dependency>=0.2.0,<0.3.0",
   "orjson>=3.11.2,<4",
   "pydantic>=2.11.7,<3",
@@ -30,12 +29,14 @@ description = ""
 name = "ab-cache"
 readme = "README.md"
 requires-python = ">=3.12, <4"
-version = "0.1.9"
+version = "0.1.10"
 
 [project.optional-dependencies]
-all = ["redis>=6.4.0,<7"]
+all = ["redis>=6.4.0,<7", "diskcache>=5.6.3,<6"]
 redis-async = ["redis>=6.4.0,<7"]
 redis-sync = ["redis>=6.4.0,<7"]
+diskcache-async = ["diskcache>=5.6.3,<6"]
+diskcache-sync = ["diskcache>=5.6.3,<6"]
 
 [tool.hatch.build.targets.sdist]
 include = ["src/ab_core"]
