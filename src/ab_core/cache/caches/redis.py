@@ -1,5 +1,6 @@
+from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager, contextmanager
-from typing import TYPE_CHECKING, Any, AsyncIterator, Iterator, Literal, Optional, override
+from typing import TYPE_CHECKING, Any, Literal, override
 
 from pydantic import ConfigDict, Field, model_validator
 
@@ -24,22 +25,38 @@ else:
     AsyncRedisClient = Any
     AsyncRedisClusterClient = Any
 
-# Probe availability at runtime (no hard import errors here)
-try:  # sync
-    import redis as _redis  # type: ignore
+_HAS_REDIS_SYNC = False
+_HAS_REDIS_ASYNC = False
+_HAS_REDIS_SYNC_CLUSTER = False
+_HAS_REDIS_ASYNC_CLUSTER = False
+
+try:
+    from redis import Redis as SyncRedisClient
 
     _HAS_REDIS_SYNC = True
-except Exception:
-    _redis = None  # type: ignore
-    _HAS_REDIS_SYNC = False
+except ImportError:
+    pass
 
-try:  # async
-    import redis.asyncio as _aredis  # type: ignore
+try:
+    from redis.cluster import RedisCluster as SyncRedisClusterClient
+
+    _HAS_REDIS_SYNC_CLUSTER = True
+except ImportError:
+    pass
+
+try:
+    from redis.asyncio import Redis as AsyncRedisClient
 
     _HAS_REDIS_ASYNC = True
-except Exception:
-    _aredis = None  # type: ignore
-    _HAS_REDIS_ASYNC = False
+except ImportError:
+    pass
+
+try:
+    from redis.asyncio.cluster import RedisCluster as AsyncRedisClusterClient
+
+    _HAS_REDIS_ASYNC_CLUSTER = True
+except ImportError:
+    pass
 
 
 class RedisCacheSession(CacheSession):
@@ -61,7 +78,7 @@ class RedisCacheSession(CacheSession):
         return safe_decode(raw)
 
     @override
-    def set(self, key: str, value, expiry: Optional[int] = None) -> bool:
+    def set(self, key: str, value, expiry: int | None = None) -> bool:
         k = self.namespace.apply(key)
         try:
             ok = self.client.set(k, safe_encode(value), ex=expiry)
@@ -70,7 +87,7 @@ class RedisCacheSession(CacheSession):
             raise GenericCacheWriteError(e) from e
 
     @override
-    def set_if_not_exists(self, key: str, value, expiry: Optional[int] = None) -> bool:
+    def set_if_not_exists(self, key: str, value, expiry: int | None = None) -> bool:
         k = self.namespace.apply(key)
         try:
             ok = self.client.set(k, safe_encode(value), nx=True, ex=expiry)
@@ -92,8 +109,8 @@ class RedisCacheSession(CacheSession):
         key: str,
         *,
         increment_by: int = 1,
-        initial_value: Optional[int] = None,
-        expiry: Optional[int] = None,
+        initial_value: int | None = None,
+        expiry: int | None = None,
     ) -> int:
         k = self.namespace.apply(key)
         script = """
@@ -185,7 +202,7 @@ class RedisCacheAsyncSession(CacheAsyncSession):
         return safe_decode(raw)
 
     @override
-    async def set(self, key: str, value, expiry: Optional[int] = None) -> bool:
+    async def set(self, key: str, value, expiry: int | None = None) -> bool:
         k = self.namespace.apply(key)
         try:
             ok = await self.client.set(k, safe_encode(value), ex=expiry)
@@ -194,7 +211,7 @@ class RedisCacheAsyncSession(CacheAsyncSession):
             raise GenericCacheWriteError(e) from e
 
     @override
-    async def set_if_not_exists(self, key: str, value, expiry: Optional[int] = None) -> bool:
+    async def set_if_not_exists(self, key: str, value, expiry: int | None = None) -> bool:
         k = self.namespace.apply(key)
         try:
             ok = await self.client.set(k, safe_encode(value), nx=True, ex=expiry)
@@ -216,8 +233,8 @@ class RedisCacheAsyncSession(CacheAsyncSession):
         key: str,
         *,
         increment_by: int = 1,
-        initial_value: Optional[int] = None,
-        expiry: Optional[int] = None,
+        initial_value: int | None = None,
+        expiry: int | None = None,
     ) -> int:
         k = self.namespace.apply(key)
         script = """
@@ -293,14 +310,23 @@ class RedisCache(CacheBase[RedisCacheSession, RedisCacheAsyncSession]):
     type: Literal[CacheType.REDIS] = CacheType.REDIS
 
     redis_url: str
-    username: Optional[str] = None
-    password: Optional[str] = None
+    username: str | None = None
+    password: str | None = None
     cluster: bool = Field(False, description="Use Redis Cluster")
 
     # Validate imports once the model is created
     @model_validator(mode="after")
     def _validate_imports(self) -> "RedisCache":
-        if not (_HAS_REDIS_SYNC or _HAS_REDIS_ASYNC):
+        if self.cluster:
+            if not (_HAS_REDIS_SYNC_CLUSTER or _HAS_REDIS_ASYNC_CLUSTER):
+                raise ImportError(
+                    "Redis Cluster client not installed. "
+                    "Install extras depending on your usage:\n"
+                    '  - Sync only:  pip install "ab-cache[redis-sync]"\n'
+                    '  - Async only: pip install "ab-cache[redis-async]"\n'
+                    '  - Both:       pip install "ab-cache[redis-sync,redis-async]"'
+                )
+        elif not (_HAS_REDIS_SYNC or _HAS_REDIS_ASYNC):
             raise ImportError(
                 "Redis client not installed. "
                 "Install extras depending on your usage:\n"
@@ -343,7 +369,7 @@ class RedisCache(CacheBase[RedisCacheSession, RedisCacheAsyncSession]):
     def sync_session(
         self,
         *,
-        current_session: Optional[RedisCacheSession] = None,
+        current_session: RedisCacheSession | None = None,
     ) -> Iterator[RedisCacheSession]:
         if current_session:
             yield current_session
@@ -359,7 +385,7 @@ class RedisCache(CacheBase[RedisCacheSession, RedisCacheAsyncSession]):
     async def async_session(
         self,
         *,
-        current_session: Optional[RedisCacheAsyncSession] = None,
+        current_session: RedisCacheAsyncSession | None = None,
     ) -> AsyncIterator[RedisCacheAsyncSession]:
         if current_session:
             yield current_session

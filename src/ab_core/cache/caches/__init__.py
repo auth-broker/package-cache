@@ -7,4 +7,4 @@ from .inmemory import InMemoryCache
 from .redis import RedisCache
 from .template import TemplateCache
 
-Cache = Annotated[Union[RedisCache, TemplateCache, InMemoryCache, DiskCache], Discriminator("type")]
+Cache = Annotated[RedisCache | TemplateCache | InMemoryCache | DiskCache, Discriminator("type")]

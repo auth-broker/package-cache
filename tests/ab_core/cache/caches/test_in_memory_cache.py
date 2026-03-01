@@ -6,14 +6,13 @@ from typing import Any
 
 import pytest
 
-from ab_core.cache.exceptions import GenericCacheReadError, GenericCacheWriteError
+import ab_core.cache.caches.inmemory as inmemory_mod
 from ab_core.cache.caches.inmemory import (
     InMemoryCache,
     InMemoryCacheAsyncSession,
     InMemoryCacheSession,
 )
-
-import ab_core.cache.caches.inmemory as inmemory_mod
+from ab_core.cache.exceptions import GenericCacheReadError, GenericCacheWriteError
 
 
 class FrozenTime:
@@ -55,13 +54,16 @@ def async_session(cache: InMemoryCache) -> InMemoryCacheAsyncSession:
 # Diagnostic tests: show whether dict references are actually shared
 # -----------------------------------------------------------------------------
 
+
 def test_session_uses_same_store_object_as_cache(cache: InMemoryCache):
     with cache.sync_session() as s:
         assert s.store is cache.store
         assert s.expiry is cache.expiry
 
 
-@pytest.mark.xfail(reason="Currently failing: store is not persisting across sessions; indicates dict copying or rollback.")
+@pytest.mark.xfail(
+    reason="Currently failing: store is not persisting across sessions; indicates dict copying or rollback."
+)
 def test_store_persists_across_sessions(cache: InMemoryCache, frozen_time: FrozenTime):
     with cache.sync_session() as s1:
         assert s1.set("a", {"x": 1}, expiry=10) is True
@@ -74,7 +76,9 @@ def test_store_persists_across_sessions(cache: InMemoryCache, frozen_time: Froze
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Currently failing: store is not persisting across async sessions; indicates dict copying or rollback.")
+@pytest.mark.xfail(
+    reason="Currently failing: store is not persisting across async sessions; indicates dict copying or rollback."
+)
 async def test_store_persists_across_async_sessions(cache: InMemoryCache, frozen_time: FrozenTime):
     async with cache.async_session() as s1:
         assert await s1.set("a", "hello", expiry=10) is True
@@ -87,6 +91,7 @@ async def test_store_persists_across_async_sessions(cache: InMemoryCache, frozen
 # -----------------------------------------------------------------------------
 # Sync session behaviour (should pass)
 # -----------------------------------------------------------------------------
+
 
 def test_sync_get_set_delete_roundtrip(sync_session: InMemoryCacheSession):
     assert sync_session.set("k", "v") is True
@@ -160,7 +165,9 @@ def test_sync_get_ttl_positive(sync_session: InMemoryCacheSession):
     assert 0 < ttl <= 10
 
 
-def test_sync_get_ttl_expired_between_checks_branch(sync_session: InMemoryCacheSession, frozen_time: FrozenTime, monkeypatch):
+def test_sync_get_ttl_expired_between_checks_branch(
+    sync_session: InMemoryCacheSession, frozen_time: FrozenTime, monkeypatch
+):
     sync_session.set("k", "v", expiry=1)
 
     original_cleanup = sync_session._cleanup_key
@@ -223,6 +230,7 @@ def test_sync_delete_wraps_exception_as_write_error(cache: InMemoryCache):
 # Async session behaviour (should pass)
 # -----------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_async_get_set_delete_roundtrip(async_session: InMemoryCacheAsyncSession):
     assert await async_session.set("k", "v") is True
@@ -279,7 +287,9 @@ async def test_async_increment_non_integer_raises(async_session: InMemoryCacheAs
 
 
 @pytest.mark.asyncio
-async def test_async_expire_sets_ttl_and_missing_false(async_session: InMemoryCacheAsyncSession, frozen_time: FrozenTime):
+async def test_async_expire_sets_ttl_and_missing_false(
+    async_session: InMemoryCacheAsyncSession, frozen_time: FrozenTime
+):
     assert await async_session.expire("missing", 10) is False
     await async_session.set("k", "v")
     assert await async_session.expire("k", 7) is True

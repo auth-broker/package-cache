@@ -1,12 +1,12 @@
 import asyncio
 import fnmatch
 import time
+from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
-from typing import AsyncIterator, Iterator, Literal, Optional, override
+from typing import TYPE_CHECKING, Literal, override
 
-import diskcache  # pip install diskcache
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, model_validator
 
 from ab_core.cache.codec import DecodedT, safe_decode, safe_encode
 from ab_core.cache.exceptions import GenericCacheReadError, GenericCacheWriteError
@@ -14,14 +14,29 @@ from ab_core.cache.exceptions import GenericCacheReadError, GenericCacheWriteErr
 from ..schema.cache_type import CacheType
 from .base import CacheAsyncSession, CacheBase, CacheSession
 
+# ---------- Optional imports & typing ----------
+if TYPE_CHECKING:
+    import diskcache as diskcache  # for type checkers
+else:
+    diskcache = None  # type: ignore[assignment]
+
+_HAS_DISKCACHE = False
+
+try:
+    import diskcache as _diskcache  # avoid shadowing confusion
+
+    diskcache = _diskcache  # bind the runtime name
+    _HAS_DISKCACHE = True
+except ImportError:
+    diskcache = None  # type: ignore[assignment]
+
 # ────────────────────────────────────────────────────────────────────────────────
 # Sync Session
 # ────────────────────────────────────────────────────────────────────────────────
 
 
 class DiskCacheSyncSession(CacheSession):
-    """
-    Synchronous disk-backed session using `diskcache.Cache | diskcache.FanoutCache`.
+    """Synchronous disk-backed session using `diskcache.Cache | diskcache.FanoutCache`.
 
     - Keys are namespaced.
     - Values are stored as EncodedT (bytes-like) via `safe_encode`.
@@ -54,7 +69,7 @@ class DiskCacheSyncSession(CacheSession):
             raise GenericCacheReadError(e) from e
 
     @override
-    def set(self, key: str, value, expiry: Optional[int] = None) -> bool:
+    def set(self, key: str, value, expiry: int | None = None) -> bool:
         k = self.namespace.apply(key)
         try:
             return bool(self.cache.set(k, safe_encode(value), expire=expiry))
@@ -62,7 +77,7 @@ class DiskCacheSyncSession(CacheSession):
             raise GenericCacheWriteError(e) from e
 
     @override
-    def set_if_not_exists(self, key: str, value, expiry: Optional[int] = None) -> bool:
+    def set_if_not_exists(self, key: str, value, expiry: int | None = None) -> bool:
         k = self.namespace.apply(key)
         try:
             # `add` stores only if missing
@@ -84,8 +99,8 @@ class DiskCacheSyncSession(CacheSession):
         key: str,
         *,
         increment_by: int = 1,
-        initial_value: Optional[int] = None,
-        expiry: Optional[int] = None,
+        initial_value: int | None = None,
+        expiry: int | None = None,
     ) -> int:
         k = self.namespace.apply(key)
         try:
@@ -185,9 +200,7 @@ class DiskCacheSyncSession(CacheSession):
 
 
 class DiskCacheAsyncSession(CacheAsyncSession):
-    """
-    Async facade for `diskcache.Cache | diskcache.FanoutCache` wrapped with `asyncio.to_thread`.
-    """
+    """Async facade for `diskcache.Cache | diskcache.FanoutCache` wrapped with `asyncio.to_thread`."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -216,7 +229,7 @@ class DiskCacheAsyncSession(CacheAsyncSession):
             raise GenericCacheReadError(e) from e
 
     @override
-    async def set(self, key: str, value, expiry: Optional[int] = None) -> bool:
+    async def set(self, key: str, value, expiry: int | None = None) -> bool:
         k = self._ns(key)
         try:
             return await asyncio.to_thread(self.cache.set, k, safe_encode(value), expiry)
@@ -224,7 +237,7 @@ class DiskCacheAsyncSession(CacheAsyncSession):
             raise GenericCacheWriteError(e) from e
 
     @override
-    async def set_if_not_exists(self, key: str, value, expiry: Optional[int] = None) -> bool:
+    async def set_if_not_exists(self, key: str, value, expiry: int | None = None) -> bool:
         k = self._ns(key)
         try:
             return await asyncio.to_thread(self.cache.add, k, safe_encode(value), expiry)
@@ -246,8 +259,8 @@ class DiskCacheAsyncSession(CacheAsyncSession):
         key: str,
         *,
         increment_by: int = 1,
-        initial_value: Optional[int] = None,
-        expiry: Optional[int] = None,
+        initial_value: int | None = None,
+        expiry: int | None = None,
     ) -> int:
         k = self._ns(key)
 
@@ -373,6 +386,18 @@ class DiskCache(CacheBase[DiskCacheSyncSession, DiskCacheAsyncSession]):
     fanout: bool = Field(False, description="Use diskcache.FanoutCache instead of Cache")
     shards: int = Field(8, description="Number of shards when using FanoutCache")
 
+    @model_validator(mode="after")
+    def _validate_imports(self) -> "DiskCache":
+        if not _HAS_DISKCACHE:
+            raise ImportError(
+                "Diskcache  not installed. "
+                "Install extras depending on your usage:\n"
+                '  - Sync only:  pip install "ab-cache[diskcache-sync]"\n'
+                '  - Async only: pip install "ab-cache[diskcache-async]"\n'
+                '  - Both:       pip install "ab-cache[diskcache-sync,diskcache-async]"'
+            )
+        return self
+
     def _new_cache(self) -> diskcache.Cache | diskcache.FanoutCache:
         if self.fanout:
             return diskcache.FanoutCache(self.directory, timeout=self.timeout, shards=self.shards)
@@ -383,7 +408,7 @@ class DiskCache(CacheBase[DiskCacheSyncSession, DiskCacheAsyncSession]):
     def sync_session(
         self,
         *,
-        current_session: Optional[DiskCacheSyncSession] = None,
+        current_session: DiskCacheSyncSession | None = None,
     ) -> Iterator[DiskCacheSyncSession]:
         if current_session:
             yield current_session
@@ -396,12 +421,10 @@ class DiskCache(CacheBase[DiskCacheSyncSession, DiskCacheAsyncSession]):
     async def async_session(
         self,
         *,
-        current_session: Optional[DiskCacheAsyncSession] = None,
+        current_session: DiskCacheAsyncSession | None = None,
     ) -> AsyncIterator[DiskCacheAsyncSession]:
         if current_session:
             yield current_session
         else:
-            async with DiskCacheAsyncSession(
-                namespace=self.namespace, cache=self._new_cache()
-            ) as session:
+            async with DiskCacheAsyncSession(namespace=self.namespace, cache=self._new_cache()) as session:
                 yield session

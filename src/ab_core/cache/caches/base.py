@@ -4,7 +4,6 @@ from typing import (
     AsyncContextManager,
     ContextManager,
     Generic,
-    Optional,
     Self,
     TypeVar,
 )
@@ -23,10 +22,10 @@ class CacheSession(BaseModel, ABC):
     def get(self, key: str): ...
 
     @abstractmethod
-    def set(self, key: str, value, expiry: Optional[int] = None) -> bool: ...
+    def set(self, key: str, value, expiry: int | None = None) -> bool: ...
 
     @abstractmethod
-    def set_if_not_exists(self, key: str, value, expiry: Optional[int] = None) -> bool: ...
+    def set_if_not_exists(self, key: str, value, expiry: int | None = None) -> bool: ...
 
     @abstractmethod
     def delete(self, key: str) -> int: ...
@@ -37,8 +36,8 @@ class CacheSession(BaseModel, ABC):
         key: str,
         *,
         increment_by: int = 1,
-        initial_value: Optional[int] = None,
-        expiry: Optional[int] = None,
+        initial_value: int | None = None,
+        expiry: int | None = None,
     ) -> int: ...
 
     @abstractmethod
@@ -72,10 +71,10 @@ class CacheAsyncSession(BaseModel, ABC):
     async def get(self, key: str): ...
 
     @abstractmethod
-    async def set(self, key: str, value, expiry: Optional[int] = None) -> bool: ...
+    async def set(self, key: str, value, expiry: int | None = None) -> bool: ...
 
     @abstractmethod
-    async def set_if_not_exists(self, key: str, value, expiry: Optional[int] = None) -> bool: ...
+    async def set_if_not_exists(self, key: str, value, expiry: int | None = None) -> bool: ...
 
     @abstractmethod
     async def delete(self, key: str) -> int: ...
@@ -86,8 +85,8 @@ class CacheAsyncSession(BaseModel, ABC):
         key: str,
         *,
         increment_by: int = 1,
-        initial_value: Optional[int] = None,
-        expiry: Optional[int] = None,
+        initial_value: int | None = None,
+        expiry: int | None = None,
     ) -> int: ...
 
     @abstractmethod
@@ -123,12 +122,12 @@ class CacheBase(BaseModel, Generic[SYNC_SESSION, ASYNC_SESSION], ABC):
     def sync_session(
         self,
         *,
-        current_session: Optional[SYNC_SESSION] = None,
+        current_session: SYNC_SESSION | None = None,
     ) -> ContextManager[SYNC_SESSION]: ...
 
     @abstractmethod
     async def async_session(
         self,
         *,
-        current_session: Optional[ASYNC_SESSION] = None,
+        current_session: ASYNC_SESSION | None = None,
     ) -> AsyncContextManager[ASYNC_SESSION]: ...

@@ -1,9 +1,10 @@
 import fnmatch
 import time
+from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager, contextmanager
-from typing import AsyncIterator, Iterator, Literal, Optional, override
+from typing import Literal, override
 
-from pydantic import ConfigDict, Field, PrivateAttr
+from pydantic import ConfigDict, PrivateAttr
 
 from ab_core.cache.codec import DecodedT, EncodedT, safe_decode, safe_encode
 from ab_core.cache.exceptions import GenericCacheReadError, GenericCacheWriteError
@@ -13,18 +14,18 @@ from .base import CacheAsyncSession, CacheBase, CacheSession
 
 
 class InMemoryCacheSession(CacheSession):
-    """
-    Synchronous in-memory session.
+    """Synchronous in-memory session.
 
-    IMPORTANT:
+    Important:
     - store/expiry are REFERENCES to the owning InMemoryCache's dicts.
       The session should not own lifecycle of the underlying data.
+
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     _store: dict[str, EncodedT] = PrivateAttr()
-    _expiry: dict[str, Optional[float]] = PrivateAttr()
+    _expiry: dict[str, float | None] = PrivateAttr()
 
     def __init__(self, **data):
         store = data.pop("store")
@@ -38,7 +39,7 @@ class InMemoryCacheSession(CacheSession):
         return self._store
 
     @property
-    def expiry(self) -> dict[str, Optional[float]]:
+    def expiry(self) -> dict[str, float | None]:
         return self._expiry
 
     def _cleanup_key(self, k: str) -> None:
@@ -61,7 +62,7 @@ class InMemoryCacheSession(CacheSession):
             raise GenericCacheReadError(e) from e
 
     @override
-    def set(self, key: str, value, expiry: Optional[int] = None) -> bool:
+    def set(self, key: str, value, expiry: int | None = None) -> bool:
         k = self.namespace.apply(key)
         try:
             self.store[k] = safe_encode(value)
@@ -71,7 +72,7 @@ class InMemoryCacheSession(CacheSession):
             raise GenericCacheWriteError(e) from e
 
     @override
-    def set_if_not_exists(self, key: str, value, expiry: Optional[int] = None) -> bool:
+    def set_if_not_exists(self, key: str, value, expiry: int | None = None) -> bool:
         k = self.namespace.apply(key)
         try:
             self._cleanup_key(k)
@@ -101,8 +102,8 @@ class InMemoryCacheSession(CacheSession):
         key: str,
         *,
         increment_by: int = 1,
-        initial_value: Optional[int] = None,
-        expiry: Optional[int] = None,
+        initial_value: int | None = None,
+        expiry: int | None = None,
     ) -> int:
         k = self.namespace.apply(key)
         try:
@@ -195,17 +196,17 @@ class InMemoryCacheSession(CacheSession):
 
 
 class InMemoryCacheAsyncSession(CacheAsyncSession):
-    """
-    Asynchronous in-memory session.
+    """Asynchronous in-memory session.
 
-    IMPORTANT:
+    Important:
     - store/expiry are REFERENCES to the owning InMemoryCache's dicts.
+
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     _store: dict[str, EncodedT] = PrivateAttr()
-    _expiry: dict[str, Optional[float]] = PrivateAttr()
+    _expiry: dict[str, float | None] = PrivateAttr()
 
     def __init__(self, **data):
         store = data.pop("store")
@@ -219,9 +220,8 @@ class InMemoryCacheAsyncSession(CacheAsyncSession):
         return self._store
 
     @property
-    def expiry(self) -> dict[str, Optional[float]]:
+    def expiry(self) -> dict[str, float | None]:
         return self._expiry
-
 
     def _cleanup_key(self, k: str) -> None:
         exp = self.expiry.get(k)
@@ -243,7 +243,7 @@ class InMemoryCacheAsyncSession(CacheAsyncSession):
             raise GenericCacheReadError(e) from e
 
     @override
-    async def set(self, key: str, value, expiry: Optional[int] = None) -> bool:
+    async def set(self, key: str, value, expiry: int | None = None) -> bool:
         k = self.namespace.apply(key)
         try:
             self.store[k] = safe_encode(value)
@@ -253,7 +253,7 @@ class InMemoryCacheAsyncSession(CacheAsyncSession):
             raise GenericCacheWriteError(e) from e
 
     @override
-    async def set_if_not_exists(self, key: str, value, expiry: Optional[int] = None) -> bool:
+    async def set_if_not_exists(self, key: str, value, expiry: int | None = None) -> bool:
         k = self.namespace.apply(key)
         try:
             self._cleanup_key(k)
@@ -283,8 +283,8 @@ class InMemoryCacheAsyncSession(CacheAsyncSession):
         key: str,
         *,
         increment_by: int = 1,
-        initial_value: Optional[int] = None,
-        expiry: Optional[int] = None,
+        initial_value: int | None = None,
+        expiry: int | None = None,
     ) -> int:
         k = self.namespace.apply(key)
         try:
@@ -372,19 +372,20 @@ class InMemoryCacheAsyncSession(CacheAsyncSession):
         # Nothing to release for in-memory; keep API parity
         return None
 
+
 class InMemoryCache(CacheBase[InMemoryCacheSession, InMemoryCacheAsyncSession]):
     type: Literal[CacheType.INMEMORY] = CacheType.INMEMORY
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     _store: dict[str, EncodedT] = PrivateAttr(default_factory=dict)
-    _expiry: dict[str, Optional[float]] = PrivateAttr(default_factory=dict)
+    _expiry: dict[str, float | None] = PrivateAttr(default_factory=dict)
 
     @property
     def store(self) -> dict[str, EncodedT]:
         return self._store
 
     @property
-    def expiry(self) -> dict[str, Optional[float]]:
+    def expiry(self) -> dict[str, float | None]:
         return self._expiry
 
     @override
@@ -392,7 +393,7 @@ class InMemoryCache(CacheBase[InMemoryCacheSession, InMemoryCacheAsyncSession]):
     def sync_session(
         self,
         *,
-        current_session: Optional[InMemoryCacheSession] = None,
+        current_session: InMemoryCacheSession | None = None,
     ) -> Iterator[InMemoryCacheSession]:
         if current_session:
             yield current_session
@@ -410,7 +411,7 @@ class InMemoryCache(CacheBase[InMemoryCacheSession, InMemoryCacheAsyncSession]):
     async def async_session(
         self,
         *,
-        current_session: Optional[InMemoryCacheAsyncSession] = None,
+        current_session: InMemoryCacheAsyncSession | None = None,
     ) -> AsyncIterator[InMemoryCacheAsyncSession]:
         if current_session:
             yield current_session
